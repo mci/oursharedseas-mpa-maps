@@ -98,6 +98,140 @@ const worldStyle = new carto.style.CartoCSS(`
 const worldLayer = new carto.layer.Layer(worldSource, worldStyle);
 client.addLayers([worldLayer]);
 
+const mpaSource = new carto.source.SQL(`
+SELECT cartodb_id, the_geom, ST_Transform(the_geom, 954009) as the_geom_webmercator, rep_area, implemented, is_mpa, no_take, status
+FROM mpatlas WHERE verification_state != 'Rejected as MPA' AND is_mpa = true AND status NOT IN ('Defunct/Degazetted') AND rep_area > 20000 ORDER BY is_mpa ASC, no_take DESC, implemented DESC, mpa_id
+`);
+
+const mpaStyle = new carto.style.CartoCSS(`
+/** simple visualization */
+
+#mpatlas {
+  [is_mpa=false]::non-mpa {
+    polygon-opacity: 0.3;
+    line-width: 1;
+    line-opacity: 1;
+    polygon-fill: #bbbbbb;
+    line-color: #999999;
+    [status='Proposed'] {
+      polygon-pattern-file: url("http://www.marine-conservation.org/media/static/images/email/pattern-stripe.png");
+    }
+    [implemented=false] {
+      polygon-pattern-file: url("http://www.marine-conservation.org/media/static/images/email/pattern-stripe.png");
+    }
+  }
+  
+  [is_mpa=true]::mpa {
+    [implemented=false][status!='Proposed']::unimplemented {
+      [no_take!='All'][no_take!='Part']::unimp-mpa {
+        polygon-opacity: 0.6;
+        line-width: 1;
+        line-opacity: 1;
+        polygon-fill: #2e8ae7;
+        line-color: #2167AB;
+        polygon-pattern-file: url("http://www.marine-conservation.org/media/static/images/email/pattern-stripe.png");
+      }
+      [no_take='Part']::unimp-part {
+        polygon-opacity: 0.6;
+        line-width: 1;
+        line-opacity: 1;
+        polygon-fill: #0acfe1;
+        line-color: #098893;
+        polygon-pattern-file: url("http://www.marine-conservation.org/media/static/images/email/pattern-stripe.png");
+      }
+      [no_take="All"]::no-take-halo {
+        polygon-fill: transparent;
+        line-color: #03aa66;
+        line-opacity: 0.2;
+        line-width: 2;
+        line-offset: 1.5;
+      }
+      [no_take='All']::unimp-no-take {
+        polygon-opacity: 0.6;
+        line-width: 1;
+        line-opacity: 1;
+        polygon-fill: #08c86b;
+        line-color: #03aa66;
+        polygon-pattern-file: url("http://www.marine-conservation.org/media/static/images/email/pattern-stripe.png");
+      }
+    }
+    
+    [status='Proposed']::proposed {
+      [no_take!='All'][no_take!='Part']::prop-mpa {
+        polygon-opacity: 0.6;
+        line-width: 1.5;
+        line-opacity: 1;
+        line-dasharray: 6, 3;
+        polygon-fill: #2e8ae7;
+        line-color: #2167AB;
+        polygon-pattern-file: url("http://www.marine-conservation.org/media/static/images/email/pattern-stripe.png");
+      }
+      [no_take='Part']::prop-part {
+        polygon-opacity: 0.6;
+        line-width: 1;
+        line-opacity: 1;
+        line-dasharray: 6, 3;
+        polygon-fill: #0acfe1;
+        line-color: #098893;
+        polygon-pattern-file: url("http://www.marine-conservation.org/media/static/images/email/pattern-stripe.png");
+      }
+      [no_take="All"]::no-take-halo {
+        polygon-fill: transparent;
+        line-color: #03aa66;
+        line-opacity: 0.2;
+        line-width: 2;
+        line-offset: 1.5;
+      }
+      [no_take='All']::prop-no-take {
+        polygon-opacity: 0.6;
+        line-width: 1;
+        line-opacity: 1;
+        line-dasharray: 6, 3;
+        polygon-fill: #08c86b;
+        line-color: #03aa66;
+        polygon-pattern-file: url("http://www.marine-conservation.org/media/static/images/email/pattern-stripe.png");
+      }
+    }
+    
+    [status!='Proposed'][implemented=true]::mpa-imp {
+      [no_take!='All'][no_take!='Part']::mpa-mpa {
+        polygon-opacity: 0.9;
+        line-width: 1;
+        line-opacity: 1;
+        polygon-fill: #2e8ae7;
+        line-color: #2167AB;
+      }
+      [no_take='Part']::mpa-part {
+        polygon-opacity: 0.9;
+        line-width: 1;
+        line-opacity: 1;
+        polygon-fill: #0acfe1;
+        line-color: #098893;
+      }
+      [no_take="All"]::no-take-halo {
+        polygon-fill: transparent;
+        line-color: #03aa66;
+        line-opacity: 0.2;
+        line-width: 2;
+        line-offset: 1.5;
+      }
+      [no_take='All']::mpa-no-take {
+        polygon-opacity: 0.9;
+        line-width: 1;
+        line-opacity: 1;
+        polygon-fill: #08c86b;
+        line-color: #03aa66;
+      }
+    }
+      
+  }
+}
+
+`);
+
+const mpaLayer = new carto.layer.Layer(mpaSource, mpaStyle);
+client.addLayers([mpaLayer]);
+
       const basinSource = new carto.source.SQL(`
         SELECT cartodb_id, the_geom, ST_Transform(the_geom, 954009) as the_geom_webmercator,
   basin, basin_area_km2, total_mpa, protection_pct, implemented_mpa, implemented_mpa_pct, implemented_nt, implemented_nt_pct, unimplemented_mpa, unimplemented_nt, proposed_mpa, proposed_nt, pending_implementation_pct,
