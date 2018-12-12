@@ -115,7 +115,7 @@ FROM ocean_basins_simple_mpa
       `);
       const basinStyle = new carto.style.CartoCSS(`
 #layer {
-  polygon-fill: ramp([percent_class], (#ef4a66, #11c4a6, #ecc74d, #fc8d42, #87c55f), ("<1%", "10% and up", "2-5%", "1-2%", "5-10%"), "=");
+  polygon-fill: ramp([percent_class], (#e15e75, #11c4a6, #e1ba4d, #da8142, #77b64f), ("<1%", "10% and up", "2-5%", "1-2%", "5-10%"), "=");
   polygon-opacity: 0.8;
 }
 #layer::outline {
@@ -138,9 +138,6 @@ FROM ocean_basins_simple_mpa
           attribution: '© <a href="mpatlas.org">MPAtlas.org</a>, <a href="https://marine-conservation.org">Marine Conservation Institute</a>'
       });
       leaflyr.addTo(map);
-      
-      const ttip = L.tooltip({ }, leaflyr);
-      // ttip.addTo(map);
 
       const popup = L.popup({ closeButton: false });
       basinLayer.on(carto.layer.events.FEATURE_OVER, featureEvent => {
