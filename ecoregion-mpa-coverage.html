@@ -1,0 +1,229 @@
+<!DOCTYPE html><html lang='en' class=''>
+<head>
+  <meta charset='UTF-8'>
+  
+  <title>Marine Ecoregions - MPA Coverage</title>
+    <meta name="viewport" content="initial-scale=1.0">
+    <meta charset="utf-8">
+    <link href="https://fonts.googleapis.com/css?family=Montserrat:400,600,700|Open+Sans:300,400,600" rel="stylesheet">
+    <!-- Include Leaflet -->
+    <script src="https://unpkg.com/leaflet@1.3.4/dist/leaflet.js"></script>
+    <link href="https://unpkg.com/leaflet@1.3.4/dist/leaflet.css" rel="stylesheet">
+    <!-- Include CARTO.js -->
+    <script src="https://libs.cartocdn.com/carto.js/v4.1.8/carto.min.js"></script>
+    <link href="https://carto.com/developers/carto-js/examples/maps/public/style.css" rel="stylesheet">
+<!--     <link href="https://cartodb-libs.global.ssl.fastly.net/cartodbui/assets/1.0.0-assets.19/stylesheets/deep_insights_new.css" rel="stylesheet"> -->
+<!--     <link href="https://cartodb-libs.global.ssl.fastly.net/cartodbui/assets/1.0.0-assets.19/stylesheets/editor3.css" rel="stylesheet"> -->
+
+<style>
+.mpatlas .leaflet-popup-content-wrapper {
+    border-radius: 2px;
+      background: rgba(255,255,255,0.9);
+}
+
+.mpatlas .leaflet-popup-content {
+  margin: 2px 6px;
+  line-height: 1;
+  color: #2e3c43;
+}
+
+.mpatlas .CDB-Tooltip-list {
+  list-style: none;
+  padding: 0px;
+}
+
+.mpatlas .CDB-infowindow-subtitle {
+  color: #636d72;
+  margin-bottom: 2px;
+    font-size: 10px;
+    font-weight: 300;
+    line-height: 14px;
+    text-transform: uppercase;
+}
+
+.mpatlas .CDB-Tooltip-list h4 {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+</style>
+</head>
+<body class="mpatlas">
+    <div id="map" style="background-color:#fff;"></div>
+    <!-- Description -->
+    <aside class="toolbox" style="min-width:150px; width:250px;">
+      <div class="box legend">
+        <h3 class="h3" style="font-size: 0.85em; margin-top:2px; margin-bottom:2px;">Marine Ecoregions</h3>
+        <h3 class="h3" style="font-size: 0.7em; text-transform: uppercase; font-weight:300;margin-top:2px; margin-bottom:2px;">Designated MPA Coverage</h3>
+        <ul class="category open-sans" style="font-size:0.7em; line-height:1.2;">
+          <li id="<1%"></li>
+          <li id="1-2%"></li>
+          <li id="2-5%"></li>
+          <li id="5-10%"></li>
+          <li id="10% and up"></li>
+        </ul>
+      </div>
+      <div class="box legend">
+        <h3 class="CDB-Tooltip-listText" style="margin:0px; line-height:1;"><span class="CDB-infowindow-subtitle">ecoregion</span> <span id="tooltip-ecoregion" style="font-size:0.8em;"></span>
+        </h3>
+        <h3 class="CDB-Tooltip-listText" style="margin:0px; line-height:1;"><span class="CDB-infowindow-subtitle">province</span> <span id="tooltip-province" style="font-size:0.8em;"></span></h3>
+        <h3 class="CDB-Tooltip-listText" style="margin:0px; line-height:1;"><span class="CDB-infowindow-subtitle">realm</span> <span id="tooltip-realm" style="font-size:0.8em;"></span></h3>
+      </div>
+    </aside>
+    
+<script >
+const map = L.map('map').setView([0, 0], 2);
+map.fitBounds([
+[-63, -163],
+[63, 163]]);
+
+map.scrollWheelZoom.disable();
+
+// L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}.png', {
+//   maxZoom: 18
+// }).addTo(map);
+
+const client = new carto.Client({
+  apiKey: 'ibg-AbJKDEWZoONXsQX3tw',
+  username: 'mpatlas' });
+
+
+const worldSource = new carto.source.SQL(`
+SELECT cartodb_id, the_geom, ST_Transform(the_geom, 954009) as the_geom_webmercator FROM world_borders_hd
+`);
+
+const worldStyle = new carto.style.CartoCSS(`
+#layer {
+  polygon-fill: #dfdfdf;
+  polygon-opacity: 1;
+}
+#layer::outline {
+  line-width: 0.5;
+  line-color: #ffffff;
+  line-opacity: 1;
+}
+`);
+
+const worldLayer = new carto.layer.Layer(worldSource, worldStyle);
+client.addLayers([worldLayer]);
+
+const ecoregionSource = new carto.source.SQL(`
+        SELECT cartodb_id, id, objectid, the_geom, eco_code, prov_code, rlm_code, alt_code, eco_code_x, lat_zone, shape_length, shape_area, area_km2_withland, area_km2_nocontinent, area_km2_nocountry, meow_desig_mpa, meow_desig_nt, ST_Transform(the_geom, 954009) as the_geom_webmercator, ecoregion, province, realm, ecoregion_mpa_percent, ecoregion_notake_percent, province_mpa_percent, province_notake_percent, realm_mpa_percent, realm_notake_percent, 
+  round((ecoregion_mpa_percent * 100.0)::numeric, 4) as ecoregion_mpa_percent100,
+  round((ecoregion_notake_percent * 100.0)::numeric, 4) as ecoregion_notake_percent100,
+  CASE
+    WHEN (ecoregion_mpa_percent < 0.01) THEN '<1%'
+    WHEN (ecoregion_mpa_percent >= 0.01 AND ecoregion_mpa_percent < 0.02) THEN '1-2%'
+    WHEN (ecoregion_mpa_percent >= 0.02 AND ecoregion_mpa_percent < 0.05) THEN '2-5%'
+    WHEN (ecoregion_mpa_percent >= 0.05 AND ecoregion_mpa_percent < 0.1) THEN '5-10%'
+    WHEN (ecoregion_mpa_percent >= 0.1) THEN '10% and up'
+    ELSE 'unknown'
+  END as percent_class
+FROM meow_ecoregions_mpa_noland
+      `);
+const ecoregionStyle = new carto.style.CartoCSS(`
+#layer {
+  polygon-fill: ramp([percent_class], (#ef4a66, #11c4a6, #ecc74d, #fc8d42, #87c55f), ("<1%", "10% and up", "2-5%", "1-2%", "5-10%"), "=");
+}
+#layer::outline {
+  line-width: 1;
+  line-color: #FFFFFF;
+  line-opacity: 0.5;
+}
+      `);
+const ecoregionLayer = new carto.layer.Layer(ecoregionSource, ecoregionStyle, {
+  featureOverColumns: ['ecoregion', 'province', 'realm', 'ecoregion_mpa_percent100', 'ecoregion_notake_percent100'] });
+
+
+client.addLayers([ecoregionLayer]);
+var leaflyr = client.getLeafletLayer({
+  noWrap: true,
+  bounds: [
+  [-90, -180],
+  [90, 180]] });
+
+
+leaflyr.addTo(map);
+
+const ttip = L.tooltip({}, leaflyr);
+// ttip.addTo(map);
+
+const popup = L.popup({ closeButton: false });
+ecoregionLayer.on(carto.layer.events.FEATURE_OVER, featureEvent => {
+  popup.setLatLng(featureEvent.latLng);
+
+  let content = `
+<div class="CDB-Tooltip CDB-Tooltip--isLight">
+<ul class="CDB-Tooltip-list">
+
+        <li class="CDB-Tooltip-listItem">
+          <h4 class="CDB-Tooltip-listText"><span class="CDB-infowindow-subtitle">ecoregion</span> ${featureEvent.data.ecoregion}</h4>
+        </li>
+        <li class="CDB-Tooltip-listItem">
+          <h4 class="CDB-Tooltip-listTitle"><span class="CDB-infowindow-subtitle">All MPAs</span> ${parseFloat(featureEvent.data.ecoregion_mpa_percent100.toFixed(3))}%</h4>
+         <h4 class="CDB-Tooltip-listTitle"><span class="CDB-infowindow-subtitle">No-Take</span> ${parseFloat(featureEvent.data.ecoregion_notake_percent100.toFixed(3))}%</h4>
+        </li>
+
+</ul>
+</div>
+`;
+  popup.setContent(content);
+  if (!popup.isOpen()) {
+    popup.openOn(map);
+  }
+  document.getElementById('tooltip-ecoregion').innerHTML = `${featureEvent.data.ecoregion}`;
+  document.getElementById('tooltip-province').innerHTML = `${featureEvent.data.province}`;
+  document.getElementById('tooltip-realm').innerHTML = `${featureEvent.data.realm}`;
+});
+
+ecoregionLayer.on(carto.layer.events.FEATURE_OUT, featureEvent => {
+  popup.removeFrom(map);
+  document.getElementById('tooltip-ecoregion').innerHTML = ``;
+  document.getElementById('tooltip-province').innerHTML = ``;
+  document.getElementById('tooltip-realm').innerHTML = ``;
+});
+
+//       const popupclick = L.popup({ closeButton: true });
+//       ecoregionLayer.on(carto.layer.events.FEATURE_CLICKED, featureEvent => {
+//         popupclick.setLatLng(featureEvent.latLng);
+//         if (!popupclick.isOpen()) {
+//           let content = `
+// <div class="CDB-Tooltip CDB-Tooltip--isLight">
+//   <ul class="CDB-Tooltip-list">
+
+//           <li class="CDB-Tooltip-listItem">
+//             <h4 class="CDB-Tooltip-listText">${featureEvent.data.ecoregion}</h4>
+//           </li>
+//           <li class="CDB-Tooltip-listItem">
+//             <h4 class="CDB-Tooltip-listTitle">${featureEvent.data.ecoregion_mpa_percent100}% MPA</h4>
+//            <h4 class="CDB-Tooltip-listTitle">${featureEvent.data.ecoregion_notake_percent100}% No-Take</h4>
+//           </li>
+
+//   </ul>
+// </div>
+// `;
+//           popupclick.setContent(content);
+//           popupclick.openOn(map);
+//         }
+//       });
+
+// ecoregionLayer.on(carto.layer.events.FEATURE_OUT, featureEvent => {
+//   popupclick.removeFrom(map);
+// });
+
+ecoregionLayer.on('metadataChanged', function (event) {
+  event.styles.forEach(function (styleMetadata) {
+    renderLegendEcoregion(styleMetadata);
+  });
+});
+
+function renderLegendEcoregion(metadata) {
+  const categories = metadata.getCategories();
+  for (category of categories) {
+    document.getElementById(category.name).innerHTML = `
+                <div class="circle" style="background:${category.value}"></div> ${category.name}
+              `;
+  }
+}
+
+</script>
+</body></html>
