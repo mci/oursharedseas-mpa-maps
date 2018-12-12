@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Ocean Basins | MPA Coverage</title>
+    <meta name="viewport" content="initial-scale=1.0">
+    <meta charset="utf-8">
+    <link href="https://fonts.googleapis.com/css?family=Montserrat:400,600,700|Open+Sans:300,400,600" rel="stylesheet">
+    <!-- Include Leaflet -->
+    <script src="https://unpkg.com/leaflet@1.3.4/dist/leaflet.js"></script>
+    <link href="https://unpkg.com/leaflet@1.3.4/dist/leaflet.css" rel="stylesheet">
+    <!-- Include CARTO.js -->
+    <script src="https://libs.cartocdn.com/carto.js/v4.1.8/carto.min.js"></script>
+    <link href="https://carto.com/developers/carto-js/examples/maps/public/style.css" rel="stylesheet">
+<!--     <link href="https://cartodb-libs.global.ssl.fastly.net/cartodbui/assets/1.0.0-assets.19/stylesheets/deep_insights_new.css" rel="stylesheet"> -->
+<!--     <link href="https://cartodb-libs.global.ssl.fastly.net/cartodbui/assets/1.0.0-assets.19/stylesheets/editor3.css" rel="stylesheet"> -->
+  <style>
+.mpatlas .leaflet-popup-content-wrapper {
+    border-radius: 2px;
+      background: rgba(255,255,255,0.9);
+}
+
+.mpatlas .leaflet-popup-content {
+  margin: 2px 6px;
+  line-height: 1;
+  color: #2e3c43;
+}
+
+.mpatlas .CDB-Tooltip-list {
+  list-style: none;
+  padding: 0px;
+}
+
+.mpatlas .CDB-infowindow-subtitle {
+  color: #636d72;
+  margin-bottom: 2px;
+    font-size: 10px;
+    font-weight: 300;
+    line-height: 14px;
+    text-transform: uppercase;
+}
+
+.mpatlas .CDB-Tooltip-list h4 {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+  </style>
+  </head>
+  <body class="mpatlas">
+    <div id="map" style="background-color:#fff;"></div>
+    <!-- Description -->
+    <aside class="toolbox" style="min-width:150px; width:250px;">
+      <div class="box legend">
+        <h3 class="h3" style="font-size: 0.85em; margin-top:2px; margin-bottom:2px;">Ocean Basins</h3>
+        <h3 class="h3" style="font-size: 0.7em; text-transform: uppercase; font-weight:300;margin-top:2px; margin-bottom:2px;">Designated MPA Coverage</h3>
+        <ul class="category open-sans" style="font-size:0.7em; line-height:1.2;">
+          <li id="<1%"></li>
+          <li id="1-2%"></li>
+          <li id="2-5%"></li>
+          <li id="5-10%"></li>
+          <li id="10% and up"></li>
+        </ul>
+      </div>
+    </aside>
+    
+    <script>
+      const map = L.map('map').setView([0, 0], 2);
+      map.fitBounds([
+            [-63, -163],
+            [63, 163]
+          ]);
+      map.scrollWheelZoom.disable();
+
+     // L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}.png', {
+     //   maxZoom: 18
+     // }).addTo(map);
+
+      const client = new carto.Client({
+        apiKey: 'ibg-AbJKDEWZoONXsQX3tw',
+        username: 'mpatlas'
+      });
+
+const worldSource = new carto.source.SQL(`
+SELECT cartodb_id, the_geom, ST_Transform(the_geom, 954009) as the_geom_webmercator FROM world_borders_hd
+`);
+
+const worldStyle = new carto.style.CartoCSS(`
+#layer {
+  polygon-fill: #dfdfdf;
+  polygon-opacity: 1;
+}
+#layer::outline {
+  line-width: 0.5;
+  line-color: #ffffff;
+  line-opacity: 1;
+}
+`);
+
+const worldLayer = new carto.layer.Layer(worldSource, worldStyle);
+client.addLayers([worldLayer]);
+
+      const basinSource = new carto.source.SQL(`
+        SELECT cartodb_id, the_geom, ST_Transform(the_geom, 954009) as the_geom_webmercator,
+  basin, basin_area_km2, total_mpa, protection_pct, implemented_mpa, implemented_mpa_pct, implemented_nt, implemented_nt_pct, unimplemented_mpa, unimplemented_nt, proposed_mpa, proposed_nt, pending_implementation_pct,
+  round((((implemented_mpa::numeric + unimplemented_mpa::numeric) / basin_area_km2) * 100.0)::numeric, 4) as basin_mpa_percent100,
+  round((((implemented_nt::numeric + unimplemented_nt::numeric) / basin_area_km2) * 100.0)::numeric, 4) as basin_notake_percent100,
+  CASE
+    WHEN (protection_pct < 0.01) THEN '<1%'
+    WHEN (protection_pct >= 0.01 AND protection_pct < 0.02) THEN '1-2%'
+    WHEN (protection_pct >= 0.02 AND protection_pct < 0.05) THEN '2-5%'
+    WHEN (protection_pct >= 0.05 AND protection_pct < 0.1) THEN '5-10%'
+    WHEN (protection_pct >= 0.1) THEN '10% and up'
+    ELSE 'unknown'
+  END as percent_class
+FROM ocean_basins_simple_mpa
+      `);
+      const basinStyle = new carto.style.CartoCSS(`
+#layer {
+  polygon-fill: ramp([percent_class], (#ef4a66, #11c4a6, #ecc74d, #fc8d42, #87c55f), ("<1%", "10% and up", "2-5%", "1-2%", "5-10%"), "=");
+  polygon-opacity: 0.8;
+}
+#layer::outline {
+  line-width: 1;
+  line-color: #FFFFFF;
+  line-opacity: 0.5;
+}
+      `);
+      const basinLayer = new carto.layer.Layer(basinSource, basinStyle, {
+        featureOverColumns: ['basin', 'basin_mpa_percent100', 'basin_notake_percent100']
+      });
+
+      client.addLayers([basinLayer]);
+      var leaflyr = client.getLeafletLayer({
+          noWrap: true,
+          bounds: [
+            [-90, -180],
+            [90, 180]
+          ]
+      });
+      leaflyr.addTo(map);
+      
+      const ttip = L.tooltip({ }, leaflyr);
+      // ttip.addTo(map);
+
+      const popup = L.popup({ closeButton: false });
+      basinLayer.on(carto.layer.events.FEATURE_OVER, featureEvent => {
+        popup.setLatLng(featureEvent.latLng);
+
+        let content = `
+<div class="CDB-Tooltip CDB-Tooltip--isLight">
+<ul class="CDB-Tooltip-list">
+
+        <li class="CDB-Tooltip-listItem">
+          <h4 class="CDB-Tooltip-listText">${featureEvent.data.basin}</h4>
+        </li>
+        <li class="CDB-Tooltip-listItem">
+          <h4 class="CDB-Tooltip-listTitle"><span class="CDB-infowindow-subtitle">All MPAs</span> ${parseFloat(featureEvent.data.basin_mpa_percent100.toFixed(3))}%</h4>
+         <h4 class="CDB-Tooltip-listTitle"><span class="CDB-infowindow-subtitle">No-Take</span> ${parseFloat(featureEvent.data.basin_notake_percent100.toFixed(3))}%</h4>
+        </li>
+
+</ul>
+</div>
+`;
+        popup.setContent(content);
+        if (!popup.isOpen()) {
+          popup.openOn(map);
+        }
+      });
+      
+      basinLayer.on(carto.layer.events.FEATURE_OUT, featureEvent => {
+        popup.removeFrom(map);
+      });
+  
+      basinLayer.on('metadataChanged', function(event) {
+        event.styles.forEach(function (styleMetadata) {
+          renderLegendBasin(styleMetadata);
+        });
+      });
+      
+       function renderLegendBasin(metadata) {
+        const categories = metadata.getCategories();
+        for (category of categories) {
+          document.getElementById(category.name).innerHTML = `
+                <div class="circle" style="background:${category.value}"></div> ${category.name}
+              `;
+          }
+        }
+      
+    </script>
+  </body>
+</html>
