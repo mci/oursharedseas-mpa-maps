@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>High Seas | Marine Protected Areas</title>
+    <meta name="viewport" content="initial-scale=1.0">
+    <meta charset="utf-8">
+    <link href="https://fonts.googleapis.com/css?family=Montserrat:400,600,700|Open+Sans:300,400,600" rel="stylesheet">
+    <!-- Include Leaflet -->
+    <script src="https://unpkg.com/leaflet@1.3.4/dist/leaflet.js"></script>
+    <link href="https://unpkg.com/leaflet@1.3.4/dist/leaflet.css" rel="stylesheet">
+    <!-- Include CARTO.js -->
+    <script src="https://libs.cartocdn.com/carto.js/v4.1.8/carto.min.js"></script>
+    <link href="https://carto.com/developers/carto-js/examples/maps/public/style.css" rel="stylesheet">
+<!--     <link href="https://cartodb-libs.global.ssl.fastly.net/cartodbui/assets/1.0.0-assets.19/stylesheets/deep_insights_new.css" rel="stylesheet"> -->
+<!--     <link href="https://cartodb-libs.global.ssl.fastly.net/cartodbui/assets/1.0.0-assets.19/stylesheets/editor3.css" rel="stylesheet"> -->
+  <style>
+.mpatlas .leaflet-popup-content-wrapper {
+    border-radius: 2px;
+      background: rgba(255,255,255,0.9);
+}
+
+.mpatlas .leaflet-popup-content {
+  margin: 2px 6px;
+  line-height: 1;
+  color: #2e3c43;
+}
+
+.mpatlas .CDB-Tooltip-list {
+  list-style: none;
+  padding: 0px;
+}
+
+.mpatlas .CDB-infowindow-subtitle {
+  color: #636d72;
+  margin-bottom: 2px;
+    font-size: 10px;
+    font-weight: 300;
+    line-height: 14px;
+    text-transform: uppercase;
+}
+
+.mpatlas .CDB-Tooltip-list h4 {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+.mpatlas .box {
+  background: rgba(255,255,255,0.9);
+}
+
+.u-alignCenter {
+    -moz-align-items: center;
+    -ms-align-items: center;
+    align-items: center;
+    -ms-flex-align: center;
+}
+.u-flex {
+    display: -ms-flexbox;
+    display: flex;
+}
+
+.Legend-categoryListItem {
+    margin-bottom: 4px;
+}
+
+.Legend-categoryCircle {
+    position: relative;
+    min-width: 8px;
+    height: 8px;
+    margin-right: 2px;
+    margin-left: 2px;
+    border-radius: 50%;
+    opacity: 1;
+    background: #666666;
+    width: 20px;
+    height: 12px;
+}
+
+.Legend-categoryCircle:before {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    border: 1px solid rgba(0,0,0,.16);
+    border-radius: 50%;
+    content: "";
+}
+
+.Legend-categoryTitle {
+    max-width: 90%;
+    margin-left: 8px;
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+.CDB-Size-small {
+    font-size: 10px;
+    line-height: 14px;
+}
+.CDB-Text {
+    font-family: Open Sans;
+}
+.u-upperCase {
+    text-transform: uppercase;
+}
+.u-ellipsis {
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+}
+  </style>
+  </head>
+  <body class="mpatlas">
+    <div id="map" style="background-color:#fff;"></div>
+    <!-- Description -->
+    <aside class="toolbox" style="min-width:150px; width:250px;">
+      <div class="box legend">
+        <h3 class="h3" style="font-size: 0.85em; margin-top:2px; margin-bottom:2px;">High Seas</h3>
+        <h3 class="h3" style="font-size: 0.7em; text-transform: uppercase; font-weight:300;margin-top:2px; margin-bottom:2px;">Marine Protected Areas</h3>
+        <ul>
+  
+    <li class="Legend-categoryListItem u-flex u-alignCenter">
+        <span class="Legend-categoryCircle" style="opacity:1; background: #ff760e; width:20px; height:12px;""></span>
+      <p class="Legend-categoryTitle CDB-Text CDB-Size-small u-upperCase u-ellipsis" title="">High Seas MPA</p>
+    </li>
+
+    <li class="Legend-categoryListItem u-flex u-alignCenter">
+        <span class="Legend-categoryCircle" style="opacity:0.8; background: #00a3e0; width:20px; height:12px;""></span>
+      <p class="Legend-categoryTitle CDB-Text CDB-Size-small u-upperCase u-ellipsis" title="">National MPA >10,000 km<sup>2</sup></p>
+    </li>
+
+    <li class="Legend-categoryListItem u-flex u-alignCenter">
+        <span class="Legend-categoryCircle" style="opacity:1; background:url(https://s3.amazonaws.com/com.cartodb.users-assets.production/production/mpatlas/assets/20150313234939pattern-stripe.png); width:20px; height:12px;"></span>
+      <p class="Legend-categoryTitle CDB-Text CDB-Size-small u-upperCase u-ellipsis" title="">Proposed / Unimplemented MPA</p>
+    </li>
+          
+    <li class="Legend-categoryListItem u-flex u-alignCenter">
+        <span class="Legend-categoryCircle" style="opacity:0.6; background: #4da7b9; width:20px; height:12px;""></span>
+      <p class="Legend-categoryTitle CDB-Text CDB-Size-small u-upperCase u-ellipsis" title="">Exclusive Economic Zone</p>
+    </li>
+  
+</ul>
+
+      </div>
+    </aside>
+    
+    <script>
+      const map = L.map('map').setView([0, 0], 2);
+map.fitBounds([
+[-63, -163],
+[63, 163]]);
+
+map.scrollWheelZoom.disable();
+
+// L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}.png', {
+//   maxZoom: 18
+// }).addTo(map);
+
+const client = new carto.Client({
+  apiKey: 'ibg-AbJKDEWZoONXsQX3tw',
+  username: 'mpatlas' });
+
+
+const globeSource = new carto.source.SQL(`
+SELECT cartodb_id, the_geom, ST_Transform(the_geom, 954009) as the_geom_webmercator FROM globe_outline
+`);
+
+const globeStyle = new carto.style.CartoCSS(`
+#layer {
+  polygon-fill: #c6e5ef;
+  polygon-opacity: 0.9;
+}
+#layer::outline {
+  line-width: 1;
+  line-color: #FFFFFF;
+  line-opacity: 0.5;
+}
+`);
+
+const globeLayer = new carto.layer.Layer(globeSource, globeStyle);
+client.addLayers([globeLayer]);
+
+const mpaSource = new carto.source.SQL(`
+SELECT cartodb_id, the_geom, ST_Transform(the_geom, 954009) as the_geom_webmercator, rep_area, implemented, is_mpa, no_take, status FROM mpatlas WHERE verification_state != 'Rejected as MPA' AND is_mpa = true AND status NOT IN ('Defunct/Degazetted') AND (rep_area > 10000 OR rep_m_area > 10000 OR calc_m_area > 10000) AND NOT (country ILIKE '%ABNJ%' OR (designation = 'Marine Protected Area (OSPAR)' AND name in ('Hatton Bank', 'Hatton-Rockall Basin')) OR name ILIKE '%Submarino do Meteor%') ORDER BY is_mpa ASC, no_take DESC, implemented DESC, mpa_id
+`);
+
+const mpaStyle = new carto.style.CartoCSS(`
+/** simple visualization */
+
+#mpatlas {
+  [implemented=false][status!='Proposed']::unimplemented {
+      polygon-opacity: 0.4;
+      line-width: 1;
+      line-opacity: 1;
+      polygon-fill: #00a3e0;
+      line-color: #2167AB;
+      polygon-pattern-file: url("http://www.marine-conservation.org/media/static/images/email/pattern-stripe.png");
+  }
+
+  [status='Proposed']::proposed {
+      polygon-opacity: 0.4;
+      line-width: 1.5;
+      line-opacity: 1;
+      line-dasharray: 6, 3;
+      polygon-fill: #00a3e0;
+      line-color: #2167AB;
+      polygon-pattern-file: url("http://www.marine-conservation.org/media/static/images/email/pattern-stripe.png");
+  }
+
+  [status!='Proposed'][implemented=true]::mpa-imp {
+      polygon-opacity: 0.7;
+      line-width: 1;
+      line-opacity: 1;
+      polygon-fill: #00a3e0;
+      line-color: #2167AB;
+
+  }
+
+}
+`);
+
+const mpaLayer = new carto.layer.Layer(mpaSource, mpaStyle);
+client.addLayers([mpaLayer]);
+
+const eezSource = new carto.source.SQL(`
+SELECT cartodb_id, the_geom, ST_Transform(the_geom, 954009) as the_geom_webmercator FROM eez_land_nonpolitical_wgs84_simple1
+`);
+
+const eezStyle = new carto.style.CartoCSS(`
+#layer {
+  polygon-fill: #4da7b9;
+  polygon-opacity: 0.6;
+}
+#layer::outline {
+  line-width: 1;
+  line-color: #5ba1af;
+  line-opacity: 1;
+}
+`);
+
+const eezLayer = new carto.layer.Layer(eezSource, eezStyle);
+client.addLayers([eezLayer]);
+
+const worldSource = new carto.source.SQL(`
+SELECT cartodb_id, the_geom, ST_Transform(the_geom, 954009) as the_geom_webmercator FROM world_borders_hd
+`);
+
+const worldStyle = new carto.style.CartoCSS(`
+#layer {
+  polygon-fill: #ffffff;
+  polygon-opacity: 1;
+}
+#layer::outline {
+  line-width: 1;
+  line-color: #f2f2f2;
+  line-opacity: 0.5;
+}
+`);
+
+const worldLayer = new carto.layer.Layer(worldSource, worldStyle);
+client.addLayers([worldLayer]);
+
+const hsmpaSource = new carto.source.SQL(`
+SELECT cartodb_id, the_geom, ST_Transform(the_geom, 954009) as the_geom_webmercator, rep_area, implemented, is_mpa, no_take, status, name, designation, designation_eng, country, sovereign, sub_location, status_year FROM mpatlas WHERE verification_state != 'Rejected as MPA' AND (is_mpa = true AND status NOT IN ('Defunct/Degazetted') AND country ILIKE '%ABNJ%' OR (designation = 'Marine Protected Area (OSPAR)' AND name in ('Hatton Bank', 'Hatton-Rockall Basin')) OR name ILIKE '%Submarino do Meteor%') ORDER BY is_mpa ASC, no_take DESC, implemented DESC, mpa_id
+`);
+
+const hsmpaStyle = new carto.style.CartoCSS(`
+#layer [implemented=false] {
+  [status='Proposed']::proposed {
+    polygon-fill: #ff760e;
+    polygon-opacity: 0.1;
+    line-width: 1;
+    line-color: #ca5700;
+    line-opacity: 0.5;
+    polygon-pattern-file: url("http://www.marine-conservation.org/media/static/images/email/pattern-stripe.png");
+  }
+  [status!='Proposed']::unimplemented {
+    polygon-fill: #ff760e;
+    polygon-opacity: 0.1;
+    line-width: 1;
+    line-color: #ca5700;
+    line-opacity: 0.5;
+    polygon-pattern-file: url("http://www.marine-conservation.org/media/static/images/email/pattern-stripe.png");
+  }
+}
+
+#layer [implemented=true]::implemented {
+  polygon-fill: #ff760e;
+  polygon-opacity: 0.9;
+  line-width: 1;
+  line-color: #ca5700;
+  line-opacity: 0.9;
+}
+`);
+
+const hsmpaLayer = new carto.layer.Layer(hsmpaSource, hsmpaStyle, {
+  featureOverColumns: ['name', 'designation_eng', 'status'] });
+
+client.addLayers([hsmpaLayer]);
+
+var leaflyr = client.getLeafletLayer({
+  noWrap: true,
+  bounds: [
+  [-90, -180],
+  [90, 180]],
+
+  attribution: '© <a href="mpatlas.org">MPAtlas.org</a>, <a href="https://marine-conservation.org">Marine Conservation Institute</a>' });
+
+leaflyr.addTo(map);
+
+const popup = L.popup({ closeButton: false });
+hsmpaLayer.on(carto.layer.events.FEATURE_OVER, featureEvent => {
+  popup.setLatLng(featureEvent.latLng);
+
+  let content = `
+<div class="CDB-Tooltip CDB-Tooltip--isLight">
+<ul class="CDB-Tooltip-list">
+
+        <li class="CDB-Tooltip-listItem">
+          <h4 class="CDB-Tooltip-listText"><span class="CDB-infowindow-subtitle">ecoregion</span> ${featureEvent.data.name} ${featureEvent.data.designation_eng}</h4>
+        </li>
+</ul>
+</div>
+`;
+  popup.setContent(content);
+  if (!popup.isOpen()) {
+    popup.openOn(map);
+  }
+});
+
+hsmpaLayer.on(carto.layer.events.FEATURE_OUT, featureEvent => {
+  popup.removeFrom(map);
+});
+    </script>
+  </body>
+</html>
