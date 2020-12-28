@@ -302,14 +302,12 @@ const worldLayer = new carto.layer.Layer(worldSource, worldStyle);
 client.addLayers([worldLayer]);
 
 const mpaSource = new carto.source.SQL(`
-SELECT * FROM mpatlas WHERE verification_state != 'Rejected as MPA' ORDER BY is_mpa ASC, no_take DESC, implemented DESC, mpa_id
+SELECT cartodb_id, the_geom, ST_Transform(the_geom, 954009) as the_geom_webmercator, name, designation_eng, rep_area, implemented, is_mpa, no_take, status, glores_status FROM mpatlas WHERE verification_state != 'Rejected as MPA' ORDER BY is_mpa ASC, no_take DESC, implemented DESC, mpa_id
 `);
 
 const mpaStyle = new carto.style.CartoCSS(`
 /** simple visualization */
-
 /** simple visualization */
-
 #mpatlas {
   [is_mpa=false]::non-mpa {
     polygon-opacity: 0.3;
@@ -445,9 +443,7 @@ const mpaStyle = new carto.style.CartoCSS(`
     line-color: #ff6600;
     polygon-opacity:0;
   }
-
 }
-
 `);
 
 const mpaLayer = new carto.layer.Layer(mpaSource, mpaStyle, {
@@ -466,13 +462,12 @@ var leaflyr = client.getLeafletLayer({
 leaflyr.addTo(map);
 
 const popup = L.popup({ closeButton: false });
-hsmpaLayer.on(carto.layer.events.FEATURE_OVER, featureEvent => {
+mpaLayer.on(carto.layer.events.FEATURE_OVER, featureEvent => {
   popup.setLatLng(featureEvent.latLng);
 
   let content = `
 <div class="CDB-Tooltip CDB-Tooltip--isLight">
 <ul class="CDB-Tooltip-list">
-
         <li class="CDB-Tooltip-listItem">
           <h4 class="CDB-Tooltip-listText">${featureEvent.data.name} ${featureEvent.data.designation_eng}</h4>
         </li>
@@ -485,7 +480,7 @@ hsmpaLayer.on(carto.layer.events.FEATURE_OVER, featureEvent => {
   }
 });
 
-hsmpaLayer.on(carto.layer.events.FEATURE_OUT, featureEvent => {
+mpaLayer.on(carto.layer.events.FEATURE_OUT, featureEvent => {
   popup.removeFrom(map);
 });
     </script>
